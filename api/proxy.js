@@ -3,7 +3,7 @@ export const config = {
 };
 
 const ROUTES = {
-  videos: "https://invidious.nerdvpn.de",
+  videos: "https://9.dmvdriverseducation.org/page/media",
   music: "https://rapid-flower-170a.orbit-edu.workers.dev",
   radio: "https://fmstream.org",
   books: "https://lucky-scene-3bd7.orbit-edu.workers.dev"
