@@ -4,9 +4,9 @@ export const config = {
 
 const ROUTES = {
   videos: "https://invidious.nerdvpn.de",
-  music: "https://monochrome.tf",
+  music: "https://rapid-flower-170a.orbit-edu.workers.dev",
   radio: "https://fmstream.org",
-  books: "https://annas-archive.gl"
+  books: "https://lucky-scene-3bd7.orbit-edu.workers.dev"
 };
 
 export default async function handler(req) {
