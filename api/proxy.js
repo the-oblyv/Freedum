@@ -26,43 +26,11 @@ export default async function handler(req) {
       return new Response("Not found", { status: 404 });
     }
 
-    // 📺 If ONLY /videos, /music, etc → show iframe shell
-    if (parts.length === 1) {
-      return html(pageEmbed(app));
-    }
+    // Build path for iframe
+    const subPath = "/" + parts.slice(1).join("/");
+    const targetUrl = targetBase + subPath + url.search;
 
-    // 🔁 Proxy actual content
-    const newPath = "/" + parts.slice(1).join("/");
-    const targetUrl = new URL(newPath + url.search, targetBase);
-
-    const headers = new Headers(req.headers);
-    headers.set("host", new URL(targetBase).host);
-
-    let body = null;
-    if (req.method !== "GET" && req.method !== "HEAD") {
-      body = await req.arrayBuffer();
-    }
-
-    const response = await fetch(targetUrl.toString(), {
-      method: req.method,
-      headers,
-      body,
-      redirect: "manual"
-    });
-
-    const resHeaders = new Headers(response.headers);
-
-    // 🚫 Remove frame blockers (sometimes works)
-    resHeaders.delete("x-frame-options");
-    resHeaders.delete("content-security-policy");
-
-    resHeaders.delete("content-encoding");
-    resHeaders.delete("content-length");
-
-    return new Response(response.body, {
-      status: response.status,
-      headers: resHeaders
-    });
+    return html(pageEmbed(app, targetUrl));
 
   } catch (err) {
     return new Response("Crash:\n" + err.toString(), { status: 500 });
@@ -119,8 +87,8 @@ function pageHome() {
   `;
 }
 
-// 📺 Embed page
-function pageEmbed(app) {
+// 📺 Embed page (dynamic path)
+function pageEmbed(app, targetUrl) {
   return `
   <html>
   <head>
@@ -139,7 +107,7 @@ function pageEmbed(app) {
     </style>
   </head>
   <body>
-    <iframe src="/${app}/"></iframe>
+    <iframe src="${targetUrl}"></iframe>
   </body>
   </html>
   `;
