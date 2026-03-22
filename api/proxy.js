@@ -3,37 +3,39 @@ export const config = {
 };
 
 const ROUTES = {
-  "/videos": "https://invidious.nerdvpn.de",
-  "/music": "https://monochrome.tf",
-  "/radio": "https://fmstream.org",
-  "/books": "https://annas-archive.gl"
+  videos: "https://invidious.nerdvpn.de",
+  music: "https://monochrome.tf",
+  radio: "https://fmstream.org",
+  books: "https://annas-archive.gl"
 };
 
 export default async function handler(req) {
   const url = new URL(req.url);
-  const path = url.pathname;
+  const parts = url.pathname.split("/").filter(Boolean);
 
-  // Find matching route
-  const match = Object.keys(ROUTES).find(route =>
-    path.startsWith(route)
-  );
-
-  // Default homepage (no proxy)
-  if (!match) {
+  // Homepage
+  if (parts.length === 0) {
     return new Response(getHomePage(), {
       headers: { "content-type": "text/html" }
     });
   }
 
-  const targetBase = ROUTES[match];
+  const app = parts[0];
+  const targetBase = ROUTES[app];
 
-  // Remove prefix (/videos, /music, etc.)
-  const strippedPath = path.replace(match, "") || "/";
+  if (!targetBase) {
+    return new Response("Not found", { status: 404 });
+  }
 
-  const targetUrl = new URL(strippedPath + url.search, targetBase);
+  // Rebuild path WITHOUT the prefix
+  const newPath = "/" + parts.slice(1).join("/");
+
+  const targetUrl = new URL(newPath + url.search, targetBase);
 
   const headers = new Headers(req.headers);
   headers.set("host", new URL(targetBase).host);
+  headers.set("origin", targetBase);
+  headers.set("referer", targetBase);
 
   const response = await fetch(targetUrl.toString(), {
     method: req.method,
@@ -45,64 +47,15 @@ export default async function handler(req) {
     redirect: "manual"
   });
 
-  const responseHeaders = new Headers(response.headers);
-  responseHeaders.delete("content-encoding");
-  responseHeaders.delete("content-length");
+  const resHeaders = new Headers(response.headers);
+
+  // 🔑 CRITICAL FIXES
+  resHeaders.delete("content-encoding");
+  resHeaders.delete("content-length");
+  resHeaders.set("access-control-allow-origin", "*");
 
   return new Response(response.body, {
     status: response.status,
-    headers: responseHeaders
+    headers: resHeaders
   });
-}
-
-// 🏠 Homepage HTML
-function getHomePage() {
-  return `
-  <!DOCTYPE html>
-  <html>
-  <head>
-    <title>Freedum</title>
-    <style>
-      body {
-        background: #0f0f0f;
-        color: white;
-        font-family: sans-serif;
-        display: flex;
-        height: 100vh;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        gap: 20px;
-      }
-
-      h1 {
-        color: #7c3aed;
-      }
-
-      .btn {
-        padding: 15px 30px;
-        background: #7c3aed;
-        border: none;
-        border-radius: 10px;
-        color: white;
-        font-size: 18px;
-        cursor: pointer;
-        width: 200px;
-      }
-
-      .btn:hover {
-        background: #6d28d9;
-      }
-    </style>
-  </head>
-  <body>
-    <h1>Freedum</h1>
-
-    <button class="btn" onclick="location.href='/videos'">Videos</button>
-    <button class="btn" onclick="location.href='/music'">Music</button>
-    <button class="btn" onclick="location.href='/radio'">Radio</button>
-    <button class="btn" onclick="location.href='/books'">Books</button>
-  </body>
-  </html>
-  `;
 }
