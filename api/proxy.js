@@ -16,9 +16,7 @@ export default async function handler(req) {
 
     // 🏠 Homepage
     if (parts.length === 0) {
-      return new Response(getHomePage(), {
-        headers: { "content-type": "text/html" }
-      });
+      return html(pageHome());
     }
 
     const app = parts[0];
@@ -28,16 +26,18 @@ export default async function handler(req) {
       return new Response("Not found", { status: 404 });
     }
 
-    // Keep subpaths working
+    // 📺 If ONLY /videos, /music, etc → show iframe shell
+    if (parts.length === 1) {
+      return html(pageEmbed(app));
+    }
+
+    // 🔁 Proxy actual content
     const newPath = "/" + parts.slice(1).join("/");
     const targetUrl = new URL(newPath + url.search, targetBase);
 
     const headers = new Headers(req.headers);
     headers.set("host", new URL(targetBase).host);
-    headers.set("origin", targetBase);
-    headers.set("referer", targetBase);
 
-    // ✅ SAFE BODY HANDLING (prevents crashes)
     let body = null;
     if (req.method !== "GET" && req.method !== "HEAD") {
       body = await req.arrayBuffer();
@@ -52,10 +52,12 @@ export default async function handler(req) {
 
     const resHeaders = new Headers(response.headers);
 
-    // Prevent encoding issues
+    // 🚫 Remove frame blockers (sometimes works)
+    resHeaders.delete("x-frame-options");
+    resHeaders.delete("content-security-policy");
+
     resHeaders.delete("content-encoding");
     resHeaders.delete("content-length");
-    resHeaders.set("access-control-allow-origin", "*");
 
     return new Response(response.body, {
       status: response.status,
@@ -63,72 +65,89 @@ export default async function handler(req) {
     });
 
   } catch (err) {
-    return new Response(
-      "Freedum proxy crashed:\n\n" + err.toString(),
-      { status: 500 }
-    );
+    return new Response("Crash:\n" + err.toString(), { status: 500 });
   }
 }
 
-// 🏠 Homepage UI
-function getHomePage() {
+// 🏠 Homepage
+function pageHome() {
   return `
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Freedum</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body {
-      background: #0f0f0f;
-      color: white;
-      font-family: sans-serif;
-      display: flex;
-      height: 100vh;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 20px;
-      margin: 0;
-    }
+  <html>
+  <head>
+    <title>Freedum</title>
+    <style>
+      body {
+        background:#0f0f0f;
+        color:white;
+        font-family:sans-serif;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        height:100vh;
+        gap:20px;
+        margin:0;
+      }
 
-    h1 {
-      color: #7c3aed;
-      font-size: 40px;
-    }
+      h1 { color:#7c3aed; }
 
-    .btn {
-      padding: 15px 30px;
-      background: #7c3aed;
-      border: none;
-      border-radius: 10px;
-      color: white;
-      font-size: 18px;
-      cursor: pointer;
-      width: 220px;
-      transition: 0.2s;
-    }
+      .btn {
+        width:220px;
+        padding:15px 0;
+        background:#7c3aed;
+        border:none;
+        border-radius:10px;
+        color:white;
+        font-size:18px;
+        cursor:pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Freedum</h1>
 
-    .btn:hover {
-      background: #6d28d9;
-      transform: scale(1.05);
-    }
-  </style>
-</head>
-<body>
-  <h1>Freedum</h1>
+    <button class="btn" onclick="go('/videos')">Videos</button>
+    <button class="btn" onclick="go('/music')">Music</button>
+    <button class="btn" onclick="go('/radio')">Radio</button>
+    <button class="btn" onclick="go('/books')">Books</button>
 
-  <button class="btn" onclick="go('/videos')">Videos</button>
-  <button class="btn" onclick="go('/music')">Music</button>
-  <button class="btn" onclick="go('/radio')">Radio</button>
-  <button class="btn" onclick="go('/books')">Books</button>
-
-  <script>
-    function go(path) {
-      location.href = path;
-    }
-  </script>
-</body>
-</html>
+    <script>
+      function go(p){ location.href = p }
+    </script>
+  </body>
+  </html>
   `;
+}
+
+// 📺 Embed page
+function pageEmbed(app) {
+  return `
+  <html>
+  <head>
+    <title>${app}</title>
+    <style>
+      body {
+        margin:0;
+        background:black;
+      }
+
+      iframe {
+        width:100vw;
+        height:100vh;
+        border:none;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe src="/${app}/"></iframe>
+  </body>
+  </html>
+  `;
+}
+
+// helper
+function html(content) {
+  return new Response(content, {
+    headers: { "content-type": "text/html" }
+  });
 }
