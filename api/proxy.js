@@ -4,7 +4,7 @@ export const config = {
 
 const ROUTES = {
   videos: "https://9.dmvdriverseducation.org/page/media",
-  music: "https://lowkeymusic-v2.netlify.app",
+  music: "https://rapid-flower-170a.orbit-edu.workers.dev",
   radio: "https://fmstream.org",
   books: "https://lucky-scene-3bd7.orbit-edu.workers.dev"
 };
